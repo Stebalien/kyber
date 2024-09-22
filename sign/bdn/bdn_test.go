@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/pairing"
+	"go.dedis.ch/kyber/v4/pairing/bls12381/circl"
+	"go.dedis.ch/kyber/v4/pairing/bls12381/gnark"
 	"go.dedis.ch/kyber/v4/pairing/bls12381/kilic"
 	"go.dedis.ch/kyber/v4/pairing/bn256"
 	"go.dedis.ch/kyber/v4/sign/bls"
+	"go.dedis.ch/kyber/v4/suites"
 	"go.dedis.ch/kyber/v4/util/random"
 )
 
@@ -203,51 +208,86 @@ func unmarshalHex[T encoding.BinaryUnmarshaler](t *testing.T, into T, s string) 
 	return into
 }
 
+func marshalHex[T encoding.BinaryMarshaler](t *testing.T, val T) string {
+	t.Helper()
+	data, err := val.MarshalBinary()
+	require.NoError(t, err)
+	return hex.EncodeToString(data)
+}
+
+func TestBDNFixtures(t *testing.T) {
+	suites := []interface {
+		suites.Suite
+		pairing.Suite
+	}{
+		kilic.NewSuiteBLS12381(),
+		circl.NewSuiteBLS12381(),
+		gnark.NewSuiteBLS12381(),
+	}
+	for _, suite := range suites {
+		t.Run(fmt.Sprintf("%s", suite), func(t *testing.T) {
+			testBDNFixtures(t, suite)
+		})
+	}
+}
+
 // This tests exists to make sure we don't accidentally make breaking changes to signature
 // aggregation by using checking against known aggregated signatures and keys.
-func TestBDNFixtures(t *testing.T) {
+func testBDNFixtures(t *testing.T, suite pairing.Suite) {
 	schemeOnG1 := NewSchemeOnG1(suite)
 
-	public1 := unmarshalHex(t, suite.G2().Point(), "1a30714035c7a161e286e54c191b8c68345bd8239c74925a26290e8e1ae97ed6657958a17dca12c943fadceb11b824402389ff427179e0f10194da3c1b771c6083797d2b5915ea78123cbdb99ea6389d6d6b67dcb512a2b552c373094ee5693524e3ebb4a176f7efa7285c25c80081d8cb598745978f1a63b886c09a316b1493")
-	private1 := unmarshalHex(t, suite.G2().Scalar(), "49cfe5e9f4532670137184d43c0299f8b635bcacf6b0af7cab262494602d9f38")
-	public2 := unmarshalHex(t, suite.G2().Point(), "603bc61466ec8762ec6de2ba9a80b9d302d08f580d1685ac45a8e404a6ed549719dc0faf94d896a9983ff23423772720e3de5d800bc200de6f7d7e146162d3183b8880c5c0d8b71ca4b3b40f30c12d8cc0679c81a47c239c6aa7e9cc2edab4a927fe865cd413c1c17e3df8f74108e784cd77dd3e161bdaf30019a55826a32a1f")
-	private2 := unmarshalHex(t, suite.G2().Scalar(), "493abea4bb35b74c78ad9245f9d37883aeb6ee91f7fb0d8a8e11abf7aa2be581")
-	public3 := unmarshalHex(t, suite.G2().Point(), "56118769a1f0b6286abacaa32109c1497ab0819c5d21f27317e184b6681c283007aa981cb4760de044946febdd6503ab77a4586bc29c04159e53a6fa5dcb9c0261ccd1cb2e28db5204ca829ac9f6be95f957a626544adc34ba3bc542533b6e2f5cbd0567e343641a61a42b63f26c3625f74b66f6f46d17b3bf1688fae4d455ec")
-	private3 := unmarshalHex(t, suite.G2().Scalar(), "7fb0ebc317e161502208c3c16a4af890dedc3c7b275e8a04e99c0528aa6a19aa")
+	//private1, public1 := schemeOnG1.NewKeyPair(random.New())
+	//private2, public2 := schemeOnG1.NewKeyPair(random.New())
+	//private3, public3 := schemeOnG1.NewKeyPair(random.New())
 
-	sig1Exp, err := hex.DecodeString("0913b76987be19f943be23b636cab9a2484507717326bd8bbdcdbbb6b8d5eb9253cfb3597c3fa550ee4972a398813650825a871f8e0b242ae5ddbce1b7c0e2a8")
-	require.NoError(t, err)
-	sig2Exp, err := hex.DecodeString("21195d29b1863bca1559e24375211d1411d8a28a8f4c772870b07f4ccda2fd5e337c1315c210475c683e3aa8b87d3aed3f7255b3087daa30d1e1432dd61d7484")
-	require.NoError(t, err)
-	sig3Exp, err := hex.DecodeString("3c1ac80345c1733630dbdc8106925c867544b521c259f9fa9678d477e6e5d3d212b09bc0d95137c3dbc0af2241415156c56e757d5577a609293584d045593195")
-	require.NoError(t, err)
+	//t.Log(marshalHex(t, public1))
+	//t.Log(marshalHex(t, private1))
+	//t.Log(marshalHex(t, public2))
+	//t.Log(marshalHex(t, private2))
+	//t.Log(marshalHex(t, public3))
+	//t.Log(marshalHex(t, private3))
 
-	aggSigExp := unmarshalHex(t, suite.G1().Point(), "43c1d2ad5a7d71a08f3cd7495db6b3c81a4547af1b76438b2f215e85ec178fea048f93f6ffed65a69ea757b47761e7178103bb347fd79689652e55b6e0054af2")
-	aggKeyExp := unmarshalHex(t, suite.G2().Point(), "43b5161ede207b9a69fc93114b0c5022b76cc22e813ba739c7e622d826b132333cd637505399963b94e393ec7f5d4875f82391620b34be1fde1f232204fa4f723935d4dbfb725f059456bcf2557f846c03190969f7b800e904d25b0b5bcbdd421c9877d443f0313c3425dfc1e7e646b665d27b9e649faadef1129f95670d70e1")
+	public1 := unmarshalHex(t, suite.G2().Point(), "89a3c3ff4ad97196430c52778b304b4f733b1e583ca531da8f7196b75132ae123ea3623558caaa27dc442e2003fc73c018acb67b63f029a2f805c393a5999825a52dcfbfe9925b251e564d7126236dde1719c8fb17a43c6d9539bc52ce819df3")
+	private1 := unmarshalHex(t, suite.G2().Scalar(), "2fc4f01295ac7b694141053d646716f984bef2c62dca06da44d65293543fa1cf")
+	public2 := unmarshalHex(t, suite.G2().Point(), "8d4597a0a330939accdf7979c4669e992bfb300541248e25be205ce0f96503b1c66eff0f7c5471dc47cf3d0a6d92e9d20594946589fd8e0e0c0d9823bbaa515b950eacb6a3e758906cfe3350c70739ced779e47bfeba3f87fcbdf941524292fd")
+	private2 := unmarshalHex(t, suite.G2().Scalar(), "612765290696a5aef46f2a9b30f6c4f9d8934385511eeb69b0852b1418c804e2")
+	public3 := unmarshalHex(t, suite.G2().Point(), "b987b7b2e81dfe3b620b40561b4cd027febab563454b02a02fa25083f305aef08922f752e52c7f784a738a12b12dd1bd053a2baaba7c34274f3946e0c56fbeb7166a2f0c0ef2ac2ce189431c13ca0967b9ff3749c4337b52773e0016ef99eb11")
+	private3 := unmarshalHex(t, suite.G2().Scalar(), "3f78125ca531fdb699d5499cef86449757b33f4fa4158595931573cba734bf70")
+
+	const sig1Exp = "b3a21c2bf8e99f16be63c56cafc8b9753ac448283dc053e142329b78938437ef14d61b790235cb59bfe852a755c65c83"
+	const sig2Exp = "9507d535c9c1c21e522d06790e487eb2a8213481f2dcee9e50e6e64b70e8e44942c791596b849061702814bd5eac9da5"
+	const sig3Exp = "87bcba051ca24b96d7ccb94a490bbc01cef1fe19f8a23b4f76b52d4eca74d651f6b04f5d3e6f230f7dbf65897c00937b"
+
+	const aggSigExp = "920bea3be12844d36beb28ea88a1cb84030144710ca201c64f2a5bf320572dd8e70275612fb3e1f06239c78e7a8de404"
+	const aggKeyExp = "94294bebcbe2ad9671790f505bb7ef52a1aa2fe025fcd1650055345c0ca7f7fa345157cb7aa56c4a3eb91e88f51ff43d18bc4e084e61a27ac3f7524cd2d514c9dfa9846ddcbaa2ba9d1782949250fda6018c57dab9f86fd1dc7e997c42184ce5"
 
 	msg := []byte("Hello many times Boneh-Lynn-Shacham")
 	sig1, err := schemeOnG1.Sign(private1, msg)
 	require.Nil(t, err)
-	require.Equal(t, sig1Exp, sig1)
+	assert.Equal(t, sig1Exp, hex.EncodeToString(sig1), "sig1 doesn't match")
 
 	sig2, err := schemeOnG1.Sign(private2, msg)
 	require.Nil(t, err)
-	require.Equal(t, sig2Exp, sig2)
+	assert.Equal(t, sig2Exp, hex.EncodeToString(sig2), "sig2 doesn't match")
 
 	sig3, err := schemeOnG1.Sign(private3, msg)
 	require.Nil(t, err)
-	require.Equal(t, sig3Exp, sig3)
+	assert.Equal(t, sig3Exp, hex.EncodeToString(sig3), "sig3 doesn't match")
 
-	mask, _ := NewMask(suite, []kyber.Point{public1, public2, public3}, nil)
+	mask, _ := NewMask(suite.G1(), []kyber.Point{public1, public2, public3}, nil)
 	mask.SetBit(0, true)
 	mask.SetBit(1, false)
 	mask.SetBit(2, true)
 
 	aggSig, err := schemeOnG1.AggregateSignatures([][]byte{sig1, sig3}, mask)
 	require.NoError(t, err)
-	require.True(t, aggSigExp.Equal(aggSig))
+	aggSigBin, err := aggSig.MarshalBinary()
+	require.NoError(t, err)
+	assert.Equal(t, aggSigExp, hex.EncodeToString(aggSigBin))
 
 	aggKey, err := schemeOnG1.AggregatePublicKeys(mask)
 	require.NoError(t, err)
-	require.True(t, aggKeyExp.Equal(aggKey))
+	aggKeyBin, err := aggKey.MarshalBinary()
+	require.NoError(t, err)
+	assert.Equal(t, aggKeyExp, hex.EncodeToString(aggKeyBin))
 }
